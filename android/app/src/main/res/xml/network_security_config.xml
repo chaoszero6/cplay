@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home servers (Jellyfin on :8096, NAS WebDAV) are very often plain HTTP on
+  the LAN, so cleartext is allowed; the app warns before using plain HTTP to
+  a public host (spec 19.8). User-installed CAs are trusted so a self-hosted
+  Nextcloud with a private CA works once the CA is installed on the phone.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

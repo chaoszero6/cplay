@@ -1,0 +1,18 @@
+# Cross-compile ChaosPlay for 64-bit Windows from Linux with llvm-mingw (UCRT),
+# the same toolchain Qt's "win64_llvm_mingw" binaries are built with.
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_SYSTEM_PROCESSOR x86_64)
+set(LLVM_MINGW "/opt/llvm-mingw/llvm-mingw-20231128-ucrt-ubuntu-20.04-x86_64" CACHE PATH "llvm-mingw root")
+set(CMAKE_C_COMPILER   "${LLVM_MINGW}/bin/x86_64-w64-mingw32-clang")
+set(CMAKE_CXX_COMPILER "${LLVM_MINGW}/bin/x86_64-w64-mingw32-clang++")
+set(CMAKE_RC_COMPILER  "${LLVM_MINGW}/bin/x86_64-w64-mingw32-windres")
+if(DEFINED ENV{QT_WIN})
+    set(QT_WIN "$ENV{QT_WIN}")
+else()
+    set(QT_WIN "/opt/qt/6.8.2/llvm-mingw_64")
+endif()
+set(CMAKE_FIND_ROOT_PATH "${LLVM_MINGW}/x86_64-w64-mingw32" "${QT_WIN}")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)

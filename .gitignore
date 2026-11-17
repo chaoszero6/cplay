@@ -1,0 +1,23 @@
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+windows/build-linux/
+windows/build-windows/
+windows/dist/
+tools/test-servers/*.log
+tools/test-servers/*.out
+tools/test-servers/ssh_host_key
+
+# Secrets: never publish the signing key or its passwords
+*.jks
+*.keystore
+android/keystore.properties
+# Downloaded by windows/scripts/fetch-third-party.sh
+windows/third_party/mpv-win64/
+windows/third_party/vulkan-loader/
+# Private design documents
+docs/
+# Local tool output
+*.log
+windows/test/
