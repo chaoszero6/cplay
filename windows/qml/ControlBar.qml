@@ -12,14 +12,13 @@ Rectangle {
     readonly property alias seeking: seek.dragging
     // Narrow windows drop the less important buttons (all still in the menu,
     // on the keyboard and on the mouse wheel), widest first
-    readonly property bool roomForExtras: width >= 820      // volume %, screenshot
-    readonly property bool roomForTransport: width >= 740   // stop, open
-    readonly property bool roomForTracks: width >= 640      // previous/next, audio, pin
-    readonly property bool roomForTools: width >= 540       // speed, subtitles, volume slider
+    readonly property bool roomForExtras: width >= 920      // volume %, screenshot, control box, lock
+    readonly property bool roomForTransport: width >= 780   // stop, open
+    readonly property bool roomForTracks: width >= 680      // previous/next, audio, pin
+    readonly property bool roomForTools: width >= 560       // speed, subtitles, playlist, volume slider
     signal menuRequested(Item anchor)
 
     height: Theme.controlBarHeight
-    clip: true
     gradient: Gradient {
         GradientStop { position: 0; color: Theme.chromeTop }
         GradientStop { position: 1; color: Theme.chromeBottom }
@@ -37,6 +36,11 @@ Rectangle {
             value: mpv.duration > 0 ? mpv.position / mpv.duration : 0
             labelFor: (f) => app.formatClock(f * mpv.duration)
             enabled: bar.active && mpv.duration > 0
+            // A-B repeat in amber, bookmarks in white, preview frame on hover
+            marks: mpv.duration > 0 ? [bar.host.abA, bar.host.abB].filter(v => v >= 0).map(v => v / mpv.duration) : []
+            minorMarks: mpv.duration > 0 ? bar.host.bookmarkList.map(b => b.positionMs / mpv.duration) : []
+            previewSource: bar.host.previewEnabled ? bar.host.currentLocation : ""
+            previewDurationMs: mpv.duration
             Accessible.name: "Seek bar"
             onReleased: (f) => { mpv.seekTo(f * mpv.duration); bar.host.poke() }
         }
@@ -95,6 +99,9 @@ Rectangle {
                 text: mpv.videoWidth + "×" + mpv.videoHeight
                       + (mpv.hwdec.length > 0 && mpv.hwdec !== "no" ? "  ·  HW" : "  ·  SW")
                       + (Math.abs(mpv.speed - 1) > 0.001 ? "  ·  " + app.formatSpeed(mpv.speed) : "")
+                      + (bar.host.abA >= 0 ? "  ·  " + (bar.host.abB >= 0 ? "A-B" : "A-") : "")
+                      + (bar.host.sleepRemainingMs > 0 ? "  ·  " + tools.sleepLabel(bar.host.sleepRemainingMs)
+                         : bar.host.sleepAtEnd ? "  ·  Sleep at end" : "")
                 color: Theme.textMuted
                 font.family: Theme.fontFamily
                 font.pixelSize: 11
@@ -125,6 +132,9 @@ Rectangle {
                 onClicked: bar.host.openSpeedMenu(this)
             }
             IconButton { iconName: "photo_camera"; visible: bar.roomForExtras; enabled: bar.active; tip: "Screenshot (S)"; onClicked: mpv.screenshot() }
+            IconButton { iconName: "tune"; visible: bar.roomForExtras; checked: bar.host.showControlBox; tip: "Control box: picture, audio, subtitles (Ctrl+G)"; onClicked: bar.host.showControlBox = !bar.host.showControlBox }
+            IconButton { iconName: "playlist_play"; visible: bar.roomForTools; checked: bar.host.showPlaylist; tip: "Playlist (Ctrl+P)"; onClicked: bar.host.showPlaylist = !bar.host.showPlaylist }
+            IconButton { iconName: "lock"; visible: bar.roomForExtras; enabled: bar.active; tip: "Lock: ignore mouse and keys (Ctrl+L)"; onClicked: bar.host.setLocked(true) }
             IconButton {
                 iconName: "push_pin"
                 visible: bar.roomForTracks       // the title bar keeps its own pin

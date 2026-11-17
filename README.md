@@ -7,7 +7,7 @@ No ads, no tracking, no account. Ever.
 
 | | Android | Windows |
 |---|---|---|
-| Version | 1.4.3 | 0.2.2 (early, growing fast) |
+| Version | 1.4.3 | 0.3.0 (growing fast) |
 | Engine | AndroidX Media3 + FFmpeg audio | libmpv (FFmpeg) |
 | Source | [`android/`](android/) | [`windows/`](windows/) |
 
@@ -40,15 +40,19 @@ Downloads are on the [Releases](../../releases) page.
 
 A classic desktop player with no ads:
 - Plays practically every format without codec packs, with hardware decoding
-- Compact skinned window: drag it anywhere, it snaps to screen edges and corners, and one click pins it on top
+- Compact skinned window: drag it anywhere, it snaps to screen edges and corners, one click pins it on top, mini player
 - Window size on play: keep your size, always use a fixed size, or fit each video
-- Resume, subtitles (auto-loads `Movie.srt` / `Movie.en.srt`), audio tracks, speed, screenshots, frame stepping
-- Full keyboard and mouse control: Space, arrows, wheel volume, double-click fullscreen, right-click menu
-- "Open with" from Explorer, drag and drop, keeps the PC awake while playing
+- Seek-bar preview thumbnails, resume, A-B repeat, bookmarks, sleep timer, repeat one/all
+- Playlist panel: the rest of the folder is queued automatically; add, reorder, shuffle, save and open .m3u playlists
+- Control box: brightness, contrast, saturation, hue, gamma, zoom, rotate, mirror, aspect ratio, deinterlace,
+  audio delay, volume levelling, subtitle delay, size, position and text encoding
+- Lock mode (the video keeps playing, clicks and keys are ignored; hold Esc to unlock)
+- Taskbar progress and play/next/previous buttons in the taskbar thumbnail
+- One window: opening another video from Explorer plays it in the window you already have
+- Full keyboard and mouse control, right-click menu, drag and drop, keeps the PC awake while playing
 
-Coming next on Windows: playlists, bookmarks, A-B repeat, sleep timer, audio delay and levelling,
-a video adjustment panel, lock mode, mini player, seek preview, a full library, network sources
-(Jellyfin, Nextcloud, SMB, FTP, NFS, DLNA) and Play on TV.
+Coming next on Windows: a full library with thumbnails, network sources (Jellyfin, Nextcloud,
+SMB, FTP, NFS, DLNA) and Play on TV.
 
 ## Building
 

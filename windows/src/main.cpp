@@ -1,5 +1,11 @@
 #include "app/AppController.h"
 #include "app/WindowController.h"
+#include "app/PlayerTools.h"
+#include "player/PreviewProvider.h"
+#include "platform/SingleInstance.h"
+#include "platform/Taskbar.h"
+
+#include <QSettings>
 
 #include <QStandardPaths>
 #include "player/SelfTest.h"
@@ -78,11 +84,28 @@ int main(int argc, char *argv[])
         files << (QFileInfo::exists(a) ? QFileInfo(a).absoluteFilePath() : a);
     }
 
+    // One window: a second launch hands its files to the running one (setting, default on)
+    const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    const bool single = QSettings(dataDir + QStringLiteral("/settings.ini"), QSettings::IniFormat)
+                            .value(QStringLiteral("player/singleInstance"), true).toBool();
+    QString user = qEnvironmentVariable("USERNAME");
+    if (user.isEmpty()) user = qEnvironmentVariable("USER");
+    SingleInstance instance(QStringLiteral("CPlay-") + user);
+    if (single && instance.forwardToRunning(files)) return 0;
+    if (single) instance.listen();
+
     AppController controller(files);
+    QObject::connect(&instance, &SingleInstance::filesReceived, &controller, &AppController::openRequested);
     WindowController windowCtl(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/settings.ini"));
+    // Objects QML uses must outlive the engine: declared before it, destroyed after it
+    PlayerTools tools(dataDir);
+    Taskbar taskbar;
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("windowCtl"), &windowCtl);
+    engine.rootContext()->setContextProperty(QStringLiteral("tools"), &tools);
+    engine.addImageProvider(QStringLiteral("preview"), new PreviewProvider); // engine takes ownership
+    engine.rootContext()->setContextProperty(QStringLiteral("taskbar"), &taskbar);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     engine.loadFromModule("ChaosPlay", "Main");
@@ -91,6 +114,7 @@ int main(int argc, char *argv[])
     controller.setWindow(window);
     windowCtl.setWindow(window);
     windowCtl.restoreGeometry(); // after the window applied its default size
+    taskbar.setWindow(window);
 
     // Developer hook for automated UI checks: CHAOSPLAY_SNAPSHOT=out.png [CHAOSPLAY_SNAPSHOT_MS=2500]
     // saves a picture of the window and quits. Not used in normal runs.
@@ -100,8 +124,13 @@ int main(int argc, char *argv[])
         QTimer::singleShot(delay > 0 ? delay : 2500, window, [window, snapshot] {
             const QString script = qEnvironmentVariable("CHAOSPLAY_SNAPSHOT_JS");
             if (!script.isEmpty()) QMetaObject::invokeMethod(window, "runDevScript", Q_ARG(QVariant, script));
-            QTimer::singleShot(script.isEmpty() ? 0 : 900, window, [window, snapshot] {
-                window->grabWindow().save(snapshot);
+            // Optional second script just before the picture (to check results of the first)
+            const QString later = qEnvironmentVariable("CHAOSPLAY_SNAPSHOT_JS_LATE");
+            const int after = qEnvironmentVariableIsSet("CHAOSPLAY_SNAPSHOT_AFTER_JS_MS")
+                                  ? qEnvironmentVariableIntValue("CHAOSPLAY_SNAPSHOT_AFTER_JS_MS") : 900;
+            QTimer::singleShot(script.isEmpty() ? 0 : after, window, [window, snapshot, later] {
+                if (!later.isEmpty()) QMetaObject::invokeMethod(window, "runDevScript", Q_ARG(QVariant, later));
+                if (window->isVisible()) window->grabWindow().save(snapshot);
                 QCoreApplication::quit();
             });
         });

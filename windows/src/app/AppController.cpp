@@ -120,9 +120,21 @@ QString AppController::displayName(const QString &location) const { return Media
 bool AppController::isMedia(const QString &location) const { return MediaFiles::isMedia(location) || MediaFiles::isUrl(location); }
 bool AppController::isSubtitle(const QString &location) const { return MediaFiles::isSubtitle(location); }
 
+bool AppController::isUrl(const QString &location) const { return MediaFiles::isUrl(location); }
+bool AppController::isPlaylist(const QString &location) const
+{
+    const QString l = location.toLower();
+    return l.endsWith(QLatin1String(".m3u")) || l.endsWith(QLatin1String(".m3u8"));
+}
+
 QString AppController::toLocation(const QUrl &url) const
 {
     return url.isLocalFile() ? url.toLocalFile() : url.toString();
+}
+
+QUrl AppController::toUrl(const QString &location) const
+{
+    return MediaFiles::isUrl(location) ? QUrl(location) : QUrl::fromLocalFile(location);
 }
 
 QString AppController::formatClock(qint64 ms) const { return TimeFormat::formatClock(ms); }
@@ -136,6 +148,21 @@ QVariantList AppController::speedPresets() const
     QVariantList out;
     for (double s : PlaybackRules::speedPresets()) out << s;
     return out;
+}
+
+QVariant AppController::setting(const QString &key, const QVariant &fallback) const
+{
+    const QVariant v = m_settings.value(key, fallback);
+    // QSettings (INI) gives strings back: restore the fallback's type
+    if (fallback.typeId() == QMetaType::Bool) return v.toBool();
+    if (fallback.typeId() == QMetaType::Int) return v.toInt();
+    if (fallback.typeId() == QMetaType::Double) return v.toDouble();
+    return v;
+}
+
+void AppController::setSetting(const QString &key, const QVariant &value)
+{
+    m_settings.setValue(key, value);
 }
 
 QString AppController::lastFolder() const

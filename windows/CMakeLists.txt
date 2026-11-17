@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 # CPlay for Windows (also builds on Linux for testing). Internal project/module name: ChaosPlay.
 # C++ / Qt 6 Quick / libmpv, per docs/spec/01-feature-and-build-guide.md section 8.
-project(ChaosPlay VERSION 0.2.2 LANGUAGES CXX)
+project(ChaosPlay VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,6 +39,10 @@ add_library(chaosplay_core STATIC
     src/core/MediaFiles.h src/core/MediaFiles.cpp
     src/core/WindowSnap.h src/core/WindowSnap.cpp
     src/core/WindowSizeRules.h src/core/WindowSizeRules.cpp
+    src/core/Bookmarks.h src/core/Bookmarks.cpp
+    src/core/SleepTimer.h src/core/SleepTimer.cpp
+    src/core/Playlists.h src/core/Playlists.cpp
+    src/core/Adjustments.h src/core/Adjustments.cpp
 )
 target_include_directories(chaosplay_core PUBLIC src)
 target_link_libraries(chaosplay_core PUBLIC Qt6::Core)
@@ -50,7 +54,12 @@ qt_add_executable(chaosplay WIN32
     src/player/SelfTest.h src/player/SelfTest.cpp
     src/app/AppController.h src/app/AppController.cpp
     src/app/WindowController.h src/app/WindowController.cpp
+    src/app/PlayerTools.h src/app/PlayerTools.cpp
+    src/player/FramePreviewer.h src/player/FramePreviewer.cpp
+    src/player/PreviewProvider.h src/player/PreviewProvider.cpp
     src/platform/Platform.h src/platform/Platform.cpp
+    src/platform/SingleInstance.h src/platform/SingleInstance.cpp
+    src/platform/Taskbar.h src/platform/Taskbar.cpp
 )
 if(WIN32)
     target_sources(chaosplay PRIVATE assets/chaosplay.rc) # exe icon
@@ -76,6 +85,9 @@ qt_add_qml_module(chaosplay
         qml/ChaosMenu.qml
         qml/ChaosMenuItem.qml
         qml/Osd.qml
+        qml/ControlBox.qml
+        qml/PlaylistPanel.qml
+        qml/LockOverlay.qml
     RESOURCES
         assets/fonts/MaterialIcons-Regular.ttf
         assets/chaosplay-256.png
@@ -88,12 +100,12 @@ target_link_libraries(chaosplay PRIVATE
     chaosplay_core mpv
     Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::OpenGL)
 if(WIN32)
-    target_link_libraries(chaosplay PRIVATE dwmapi)
+    target_link_libraries(chaosplay PRIVATE dwmapi ole32)
 endif()
 
 # ---- tests -----------------------------------------------------------------
 enable_testing()
-foreach(t TimeFormatTest PlaybackRulesTest ResumeStoreTest MediaFilesTest WindowSnapTest WindowSizeRulesTest)
+foreach(t TimeFormatTest PlaybackRulesTest ResumeStoreTest MediaFilesTest WindowSnapTest WindowSizeRulesTest BookmarksTest SleepTimerTest PlaylistsTest AdjustmentsTest)
     qt_add_executable(${t} tests/core/${t}.cpp)
     target_link_libraries(${t} PRIVATE chaosplay_core Qt6::Test)
     add_test(NAME ${t} COMMAND ${t})
@@ -106,3 +118,11 @@ target_link_libraries(MpvPlaybackTest PRIVATE mpv Qt6::Test Qt6::Core)
 target_compile_definitions(MpvPlaybackTest PRIVATE
     TEST_MEDIA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-media")
 add_test(NAME MpvPlaybackTest COMMAND MpvPlaybackTest)
+
+# Seek-bar preview frames (hidden libmpv instance, software rendering)
+qt_add_executable(FramePreviewerTest tests/player/FramePreviewerTest.cpp src/player/FramePreviewer.cpp)
+target_include_directories(FramePreviewerTest PRIVATE src)
+target_link_libraries(FramePreviewerTest PRIVATE mpv Qt6::Test Qt6::Core Qt6::Gui)
+target_compile_definitions(FramePreviewerTest PRIVATE
+    TEST_MEDIA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-media")
+add_test(NAME FramePreviewerTest COMMAND FramePreviewerTest)

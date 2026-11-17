@@ -58,6 +58,8 @@ public:
     /** Window size so the video shows at [scale] x its size (50 %, 100 %, 200 %...). */
     Q_INVOKABLE void fitVideo(double scale, int videoWidth, int videoHeight, int chromeWidth, int chromeHeight);
     Q_INVOKABLE void center();
+    /** Mini player: small window in the bottom-right corner; false restores the old size and place. */
+    Q_INVOKABLE void setMini(bool on);
     Q_INVOKABLE void restoreGeometry();
     Q_INVOKABLE void saveGeometry();
 
@@ -75,6 +77,7 @@ private:
     QPointer<QWindow> m_window;
     QPoint m_grabOffset;       // cursor minus window top-left at press
     QRect m_normalGeometry;    // before maximizing
+    QRect m_beforeMini;        // before the mini player
     bool m_maximized = false;
     bool m_magnetic = true;
     bool m_dragging = false;

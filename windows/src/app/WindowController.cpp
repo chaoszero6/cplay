@@ -199,6 +199,23 @@ void WindowController::center()
     m_window->setGeometry(WindowSnap::keepOnScreen(r, area));
 }
 
+void WindowController::setMini(bool on)
+{
+    if (!m_window) return;
+    if (m_window->visibility() == QWindow::FullScreen) m_window->showNormal();
+    if (on) {
+        if (!m_beforeMini.isValid()) m_beforeMini = m_window->geometry();
+        setMaximized(false);
+        const QRect area = workAreaFor(m_window->geometry());
+        const QSize size(480, 270);
+        m_window->setGeometry(QRect(area.right() + 1 - size.width() - 16, area.bottom() + 1 - size.height() - 16,
+                                    size.width(), size.height()));
+    } else if (m_beforeMini.isValid()) {
+        m_window->setGeometry(m_beforeMini);
+        m_beforeMini = {};
+    }
+}
+
 void WindowController::restoreGeometry()
 {
     if (!m_window) return;

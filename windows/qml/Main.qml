@@ -47,14 +47,35 @@ ApplicationWindow {
         else showFullScreen()
     }
 
-    function openLocations(locations) {
-        const media = locations.filter(l => app.isMedia(l) && !app.isSubtitle(l))
+    /** Files from the open dialog, drag and drop, "Open with" or a second launch. */
+    function openLocations(locations, append) {
+        let media = []
+        locations.forEach(l => {
+            if (app.isPlaylist(l)) media = media.concat(tools.loadPlaylist(app.toUrl(l)))
+            else if (app.isMedia(l) && !app.isSubtitle(l)) media.push(l)
+        })
         const subs = locations.filter(l => app.isSubtitle(l))
-        if (media.length > 0) player.playQueue(media, 0)
+        if (media.length > 0) {
+            if (append) player.addToQueue(media)
+            else player.playLocations(media)
+        }
         if (subs.length > 0 && player.active) subs.forEach(s => player.player.addSubtitle(s))
     }
 
+    // A second launch ("Open with", double-click in Explorer) lands here
+    Connections {
+        target: app
+        function onOpenRequested(files) {
+            if (files.length > 0) win.openLocations(files, false)
+            if (win.visibility === Window.Minimized) win.showNormal()
+            win.raise()
+            win.requestActivate()
+        }
+    }
+
     onClosing: {
+        // Leaving from the mini player: remember the normal size and the user's own pin setting
+        if (player.mini) player.setMini(false)
         player.saveProgress(player.player.ended)
         windowCtl.saveGeometry()
     }
@@ -64,12 +85,12 @@ ApplicationWindow {
 
     Component.onCompleted: {
         // The saved size/position is restored from C++ once the window is shown
-        if (app.startupFiles.length > 0) openLocations(app.startupFiles)
+        if (app.startupFiles.length > 0) openLocations(app.startupFiles, false)
     }
 
     // Remember every size and position the user gives the window (resize from an
     // edge, drag, snap): saved shortly after it stops changing
-    Timer { id: saveGeometryTimer; interval: 600; onTriggered: windowCtl.saveGeometry() }
+    Timer { id: saveGeometryTimer; interval: 600; onTriggered: if (!player.mini) windowCtl.saveGeometry() }
     onWidthChanged: saveGeometryTimer.restart()
     onHeightChanged: saveGeometryTimer.restart()
     onXChanged: saveGeometryTimer.restart()
@@ -84,6 +105,11 @@ ApplicationWindow {
         onSubtitleFileRequested: subtitleDialog.open()
         onQuitRequested: win.close()
         onCustomSizeRequested: sizeDialog.open()
+        onAddFilesRequested: addFilesDialog.open()
+        onAddFolderRequested: { folderDialog.append = true; folderDialog.open() }
+        onOpenFolderRequested: { folderDialog.append = false; folderDialog.open() }
+        onLoadPlaylistRequested: loadPlaylistDialog.open()
+        onSavePlaylistRequested: savePlaylistDialog.open()
         onCloseRequested: if (win.visibility === Window.FullScreen) win.showNormal()
     }
 
@@ -96,14 +122,14 @@ ApplicationWindow {
         z: 20
     }
 
-    ResizeGrips { visible: win.framed; z: 30 }
+    ResizeGrips { visible: win.framed && !player.locked; z: 30 }
 
     // Drag videos (and subtitle files) anywhere onto the window
     DropArea {
         anchors.fill: parent
         onDropped: (drop) => {
             if (!drop.hasUrls) return
-            win.openLocations(drop.urls.map(u => app.toLocation(u)))
+            win.openLocations(drop.urls.map(u => app.toLocation(u)), false)
             drop.accept()
         }
         Rectangle {
@@ -124,8 +150,52 @@ ApplicationWindow {
         currentFolder: app.lastFolder()
         onAccepted: {
             app.setLastFolder(currentFolder)
-            win.openLocations(selectedFiles.map(u => app.toLocation(u)))
+            win.openLocations(selectedFiles.map(u => app.toLocation(u)), false)
         }
+    }
+
+    FileDialog {
+        id: addFilesDialog
+        title: "Add to the playlist"
+        fileMode: FileDialog.OpenFiles
+        nameFilters: app.fileFilters
+        currentFolder: app.lastFolder()
+        onAccepted: { app.setLastFolder(currentFolder); win.openLocations(selectedFiles.map(u => app.toLocation(u)), true) }
+    }
+
+    FolderDialog {
+        id: folderDialog
+        property bool append: false
+        title: append ? "Add a folder to the playlist" : "Play a folder"
+        currentFolder: app.lastFolder()
+        onAccepted: {
+            const files = tools.mediaInFolder(selectedFolder)
+            if (files.length === 0) { player.osdMessage("No videos in that folder"); return }
+            if (append) player.addToQueue(files)
+            else player.playQueue(files, 0)
+        }
+    }
+
+    FileDialog {
+        id: loadPlaylistDialog
+        title: "Open a playlist"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["Playlists (*.m3u *.m3u8)", "All files (*)"]
+        onAccepted: {
+            const files = tools.loadPlaylist(selectedFile)
+            if (files.length === 0) { player.osdMessage("That playlist is empty or unreadable"); return }
+            player.playQueue(files, 0)
+        }
+    }
+
+    FileDialog {
+        id: savePlaylistDialog
+        title: "Save the playlist"
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "m3u8"
+        nameFilters: ["Playlist (*.m3u8)", "Playlist (*.m3u)"]
+        onAccepted: player.osdMessage(tools.savePlaylist(selectedFile, player.queue, player.queue.map(l => app.displayName(l)))
+                                      ? "Playlist saved" : "Could not save the playlist")
     }
 
     FileDialog {
@@ -184,7 +254,7 @@ ApplicationWindow {
         }
     }
 
-    Shortcut { sequence: "Ctrl+O"; onActivated: fileDialog.open() }
-    Shortcut { sequence: "Ctrl+U"; onActivated: linkDialog.open() }
-    Shortcut { sequence: "Ctrl+Q"; onActivated: win.close() }
+    Shortcut { enabled: !player.locked; sequence: "Ctrl+O"; onActivated: fileDialog.open() }
+    Shortcut { enabled: !player.locked; sequence: "Ctrl+U"; onActivated: linkDialog.open() }
+    Shortcut { enabled: !player.locked; sequence: "Ctrl+Q"; onActivated: win.close() }
 }

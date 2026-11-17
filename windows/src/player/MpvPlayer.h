@@ -89,6 +89,8 @@ public:
     /** Generic escape hatch: set any mpv property ("audio-delay", "hwdec", ...). */
     Q_INVOKABLE void setMpvProperty(const QString &name, const QVariant &value);
     Q_INVOKABLE QVariant mpvProperty(const QString &name) const;
+    /** Any mpv command, e.g. ["sub-reload", "2"]. */
+    Q_INVOKABLE void mpvCommand(const QStringList &args) { command(args); }
 
     // Used by the renderer (render thread)
     std::shared_ptr<mpv_handle> handle() const { return m_mpv; }

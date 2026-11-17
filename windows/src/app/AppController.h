@@ -6,6 +6,7 @@
 #include <QPointer>
 #include <QSettings>
 #include <QStringList>
+#include <QUrl>
 #include <QVariantList>
 #include <QWindow>
 
@@ -51,14 +52,21 @@ public:
     Q_INVOKABLE QString displayName(const QString &location) const;
     Q_INVOKABLE bool isMedia(const QString &location) const;
     Q_INVOKABLE bool isSubtitle(const QString &location) const;
+    Q_INVOKABLE bool isUrl(const QString &location) const;
+    Q_INVOKABLE bool isPlaylist(const QString &location) const;
     /** file:///C:/x.mkv -> C:/x.mkv; URLs and paths pass through. */
     Q_INVOKABLE QString toLocation(const QUrl &url) const;
+    /** Path or URL text back to a QUrl (for dialogs and tools). */
+    Q_INVOKABLE QUrl toUrl(const QString &location) const;
     Q_INVOKABLE QString formatClock(qint64 ms) const;
     Q_INVOKABLE QString formatClockRemaining(qint64 durationMs, qint64 positionMs) const;
     Q_INVOKABLE QString formatSpeed(double speed) const;
     Q_INVOKABLE QString remainingLabel(qint64 durationMs, qint64 positionMs) const;
     Q_INVOKABLE double stepSpeed(double current, bool up) const;
     Q_INVOKABLE QVariantList speedPresets() const;
+    /** Generic persisted settings for the player ("player/autoQueueFolder", ...). */
+    Q_INVOKABLE QVariant setting(const QString &key, const QVariant &fallback) const;
+    Q_INVOKABLE void setSetting(const QString &key, const QVariant &value);
     Q_INVOKABLE QString lastFolder() const;
     Q_INVOKABLE void setLastFolder(const QUrl &folder);
 
