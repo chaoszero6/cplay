@@ -77,6 +77,7 @@ ApplicationWindow {
         // Leaving from the mini player: remember the normal size and the user's own pin setting
         if (player.mini) player.setMini(false)
         player.saveProgress(player.player.ended)
+        player.reportStop()
         windowCtl.saveGeometry()
     }
 

@@ -11,6 +11,8 @@ Rectangle {
     signal openFiles()
     signal openLink()
     signal customSizeRequested()
+    property alias networkPage: networkPage
+    property alias libraryPage: libraryPage
 
     color: Theme.pageBg
     onSectionChanged: app.setSetting("home/section", section)
@@ -83,8 +85,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: home.section === "network" ? 1 : home.section === "settings" ? 2 : 0
-            LibraryPage { host: home.host; onOpenFiles: home.openFiles() }
-            NetworkPage { host: home.host }
+            LibraryPage { id: libraryPage; host: home.host; onOpenFiles: home.openFiles() }
+            NetworkPage { id: networkPage; host: home.host }
             SettingsPage { host: home.host; onCustomSizeRequested: home.customSizeRequested() }
         }
     }

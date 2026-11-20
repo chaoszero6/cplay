@@ -131,6 +131,14 @@ Rectangle {
                 tip: "Playback speed ([ and ])"
                 onClicked: bar.host.openSpeedMenu(this)
             }
+            IconButton {
+                iconName: bar.host.casting ? "cast_connected" : "cast"
+                visible: bar.roomForTracks
+                checked: bar.host.casting
+                enabled: bar.active
+                tip: bar.host.casting ? "Playing on " + tv.deviceName + " (click to stop)" : "Play on TV"
+                onClicked: bar.host.casting ? bar.host.stopCasting() : bar.host.castCurrent()
+            }
             IconButton { iconName: "photo_camera"; visible: bar.roomForExtras; enabled: bar.active; tip: "Screenshot (S)"; onClicked: mpv.screenshot() }
             IconButton { iconName: "tune"; visible: bar.roomForExtras; checked: bar.host.showControlBox; tip: "Control box: picture, audio, subtitles (Ctrl+G)"; onClicked: bar.host.showControlBox = !bar.host.showControlBox }
             IconButton { iconName: "playlist_play"; visible: bar.roomForTools; checked: bar.host.showPlaylist; tip: "Playlist (Ctrl+P)"; onClicked: bar.host.showPlaylist = !bar.host.showPlaylist }

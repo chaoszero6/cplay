@@ -54,7 +54,14 @@ Item {
     property real subScale: app.setting("subtitles/scale", 1.0)
     property int subPos: app.setting("subtitles/pos", 100)
     property string subCodepage: app.setting("subtitles/codepage", "auto")
-    readonly property string mediaTitle: active ? (mpv.title.length > 0 ? mpv.title : app.displayName(currentLocation)) : ""
+    readonly property bool networkItem: net.isNetworkKey(currentLocation)
+    // Play on TV
+    property string castDevice: ""
+    property var castQueue: []
+    readonly property bool casting: tv.casting && tv.location === currentLocation
+    // Network keys know their real title; a stream's own title is often just "stream"
+    readonly property string mediaTitle: active ? (networkItem ? app.displayName(currentLocation)
+                                                   : (mpv.title.length > 0 ? mpv.title : app.displayName(currentLocation))) : ""
 
     signal closeRequested()
     signal toggleFullscreen()
@@ -78,11 +85,13 @@ Item {
 
     function playAt(index) {
         if (index < 0 || index >= queue.length) return
-        if (active) saveProgress(false)
+        if (active) { saveProgress(false); reportStop() }
         queueIndex = index
         currentLocation = queue[index]
         sizeAppliedForFile = false
-        const start = startOverNext ? 0 : app.startPositionFor(currentLocation)
+        let start = startOverNext ? 0 : app.startPositionFor(currentLocation)
+        // Jellyfin: continue where any device left off
+        if (!startOverNext && start === 0 && app.setting("player/resume", true)) start = net.resumePositionFor(currentLocation)
         startOverNext = false
         mpv.open(currentLocation, start)
         mpv.setVolume(app.volume)
@@ -103,8 +112,26 @@ Item {
         app.saveProgress(currentLocation, mediaTitle, mpv.position, mpv.duration, finished)
     }
 
+    // ---- Play on TV ---------------------------------------------------------
+    /** Picks a TV, then plays [locations] there (from the library / network menus). */
+    function castLocations(locations) { castQueue = locations; tvPicker.open() }
+    function castCurrent() { castQueue = []; tvPicker.open() }
+    function startCasting(deviceId) {
+        if (castQueue.length > 0) playQueue(castQueue, 0)
+        castQueue = []
+        if (!active) { osd.show("Open a video first"); return }
+        castDevice = deviceId
+        mpv.pause()
+        tv.cast(deviceId, currentLocation, mediaTitle, mpv.position, mpv.duration)
+    }
+    function stopCasting() { castDevice = ""; tv.stop() }
+
+    /** Jellyfin playback reports (no-ops for other sources). */
+    function reportStop() { if (networkItem) net.reportPlayback(currentLocation, mpv.position, true, "stop") }
+
     function close() {
         saveProgress(mpv.ended)
+        reportStop()
         mpv.stop()
         app.keepAwake(false)
         currentLocation = ""
@@ -418,9 +445,16 @@ Item {
                 if (!app.hardwareDecoding) setMpvProperty("hwdec", "no")
                 page.applySavedSettings()
             }
-            onFileLoaded: { page.resetPerFile(); page.poke() }
+            onFileLoaded: {
+                page.resetPerFile()
+                page.poke()
+                if (page.networkItem) net.reportPlayback(page.currentLocation, position, paused, "start")
+            }
             onEndReached: page.onVideoEnded()
-            onPausedChanged: app.keepAwake(!paused && page.active)
+            onPausedChanged: {
+                app.keepAwake(!paused && page.active)
+                if (page.networkItem && firstFrameShown) net.reportPlayback(page.currentLocation, position, paused, "progress")
+            }
             // "Window size on play": once per file, as soon as its size is known
             onVideoSizeChanged: {
                 if (page.sizeAppliedForFile || videoWidth <= 0 || videoHeight <= 0) return
@@ -514,6 +548,13 @@ Item {
             }
         }
 
+        CastOverlay {
+            anchors.fill: parent
+            visible: page.casting
+            z: 5
+            onStopRequested: page.stopCasting()
+        }
+
         Osd {
             id: osd
             anchors { left: parent.left; top: parent.top; leftMargin: 16; topMargin: page.overlayChrome && page.chromeShown ? titleBar.height + 12 : 12 }
@@ -580,6 +621,7 @@ Item {
     }
 
     Timer { interval: 5000; repeat: true; running: !mpv.paused && page.active; onTriggered: page.saveProgress(false) }
+    Timer { interval: 10000; repeat: true; running: !mpv.paused && page.networkItem; onTriggered: net.reportPlayback(page.currentLocation, mpv.position, false, "progress") }
     Timer { id: hideTimer; interval: Theme.autoHideMs; onTriggered: page.controlsShown = false }
     // Sleep timer: counts down in real time while something is playing
     Timer {
@@ -606,6 +648,23 @@ Item {
     Connections {
         target: tools
         function onBookmarksChanged() { page.refreshBookmarks() }
+    }
+    Connections {
+        target: tv
+        function onFinished(positionMs, ended) {
+            if (tv.location !== page.currentLocation) return
+            // The next video of the queue follows on the same TV
+            if (ended && page.castDevice.length > 0 && page.hasNext) {
+                const device = page.castDevice
+                page.playAt(page.queueIndex + 1)
+                page.castQueue = []
+                page.startCasting(device)
+                return
+            }
+            page.castDevice = ""
+            mpv.seekTo(positionMs)
+            osd.show(tv.error.length > 0 ? tv.error : "Continuing on this PC (paused)")
+        }
     }
     Timer { id: clickTimer; interval: 230; onTriggered: { mpv.togglePause(); page.poke() } }
 
@@ -644,6 +703,8 @@ Item {
         ChaosMenuItem { text: "Open link…"; shortcut: "Ctrl+U"; onTriggered: page.openLinkRequested() }
         ChaosMenuItem { text: "Open folder…"; shortcut: "Ctrl+Shift+O"; onTriggered: page.openFolderRequested() }
         ChaosMenuItem { text: "Playlist"; shortcut: "Ctrl+P"; checkable: true; checked: page.showPlaylist; onTriggered: page.showPlaylist = !page.showPlaylist }
+        ChaosMenuItem { text: page.casting ? "Stop playing on TV" : "Play on TV…"; enabled: page.active; onTriggered: page.casting ? page.stopCasting() : page.castCurrent() }
+        ChaosMenuItem { text: "Back to the library"; enabled: page.active; onTriggered: page.close() }
         ChaosMenu {
             title: "Recent"
             enabled: app.recent.length > 0
@@ -832,7 +893,7 @@ Item {
     }
 
     // ---- hotkeys (spec 4.2 / 8.3) ---------------------------------------------
-    Shortcut { sequence: "Space"; enabled: !page.locked && (page.active); onActivated: { mpv.togglePause(); page.poke() } }
+    Shortcut { sequence: "Space"; enabled: !page.locked && (page.active); onActivated: { if (page.casting) tv.togglePause(); else mpv.togglePause(); page.poke() } }
     Shortcut { sequence: "K"; enabled: !page.locked && (page.active); onActivated: mpv.togglePause() }
     Shortcut { sequence: "Right"; enabled: !page.locked && (page.active); onActivated: { mpv.seekBy(10000); page.poke() } }
     Shortcut { sequence: "Left"; enabled: !page.locked && (page.active); onActivated: { mpv.seekBy(-10000); page.poke() } }
@@ -880,4 +941,6 @@ Item {
     Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+M"; onActivated: page.setMini(!page.mini) }
     Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+L"; onActivated: page.setLocked(true) }
     Shortcut { enabled: !page.locked; sequence: "Ctrl+Shift+O"; onActivated: page.openFolderRequested() }
+
+    TvPicker { id: tvPicker; onChosen: (id) => page.startCasting(id) }
 }

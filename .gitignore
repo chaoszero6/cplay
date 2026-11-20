@@ -27,3 +27,4 @@ windows/third_party/net-linux/
 windows/third_party/net-windows/
 windows/third_party/build-net-linux/
 windows/third_party/build-net-windows/
+tools/test-servers/mockcast.pem

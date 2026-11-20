@@ -4,6 +4,8 @@
 #include "player/PreviewProvider.h"
 #include "library/LibraryController.h"
 #include "library/ThumbnailService.h"
+#include "network/NetworkController.h"
+#include "tv/TvController.h"
 #include "platform/SingleInstance.h"
 #include "platform/Taskbar.h"
 
@@ -105,6 +107,8 @@ int main(int argc, char *argv[])
     const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     auto thumbs = std::make_shared<ThumbnailService>(cacheDir + QStringLiteral("/thumbs"), 3);
     LibraryController library(dataDir, controller.resumeStore(), thumbs);
+    NetworkController net(dataDir, QStringLiteral(CHAOSPLAY_VERSION));
+    TvController tv(&net);
     QObject::connect(&controller, &AppController::recentChanged, &library, &LibraryController::refreshProgress);
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
@@ -113,6 +117,8 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QStringLiteral("preview"), new PreviewProvider); // engine takes ownership
     engine.rootContext()->setContextProperty(QStringLiteral("taskbar"), &taskbar);
     engine.rootContext()->setContextProperty(QStringLiteral("library"), &library);
+    engine.rootContext()->setContextProperty(QStringLiteral("net"), &net);
+    engine.rootContext()->setContextProperty(QStringLiteral("tv"), &tv);
     engine.addImageProvider(QStringLiteral("thumb"), new ThumbnailProvider(thumbs));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);

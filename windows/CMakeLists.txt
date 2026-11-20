@@ -31,6 +31,31 @@ else()
         INTERFACE_INCLUDE_DIRECTORIES "${MPV_ROOT}/include")
 endif()
 
+# ---- share clients: libsmb2 + libnfs, built by scripts/build-net-libs.sh ------
+if(WIN32)
+    set(NET_LIBS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/net-windows" CACHE PATH "libsmb2/libnfs build")
+else()
+    set(NET_LIBS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/net-linux" CACHE PATH "libsmb2/libnfs build")
+endif()
+add_library(netlibs INTERFACE)
+target_include_directories(netlibs INTERFACE "${NET_LIBS_ROOT}/include")
+target_link_libraries(netlibs INTERFACE "${NET_LIBS_ROOT}/lib/libsmb2.a" "${NET_LIBS_ROOT}/lib/libnfs.a")
+if(WIN32)
+    target_link_libraries(netlibs INTERFACE ws2_32 iphlpapi crypt32)
+endif()
+
+# ---- network: servers, share clients, local streaming server --------------
+add_library(chaosplay_net STATIC
+    src/network/FtpClient.h src/network/FtpClient.cpp
+    src/network/LocalMediaServer.h src/network/LocalMediaServer.cpp
+    src/network/ShareFs.h src/network/ShareFs.cpp
+    src/network/SecretStore.h src/network/SecretStore.cpp
+    src/network/NetworkController.h src/network/NetworkController.cpp
+    src/tv/TvController.h src/tv/TvController.cpp
+    src/player/LocationResolver.h src/player/LocationResolver.cpp
+)
+target_link_libraries(chaosplay_net PUBLIC chaosplay_core netlibs Qt6::Core Qt6::Network)
+
 # ---- core: rules and stores without any UI (unit tested) -----------------
 add_library(chaosplay_core STATIC
     src/core/TimeFormat.h src/core/TimeFormat.cpp
@@ -44,6 +69,8 @@ add_library(chaosplay_core STATIC
     src/core/Playlists.h src/core/Playlists.cpp
     src/core/Adjustments.h src/core/Adjustments.cpp
     src/core/LibraryRules.h src/core/LibraryRules.cpp
+    src/core/NetRules.h src/core/NetRules.cpp
+    src/core/CastRules.h src/core/CastRules.cpp
 )
 target_include_directories(chaosplay_core PUBLIC src)
 target_link_libraries(chaosplay_core PUBLIC Qt6::Core)
@@ -61,7 +88,6 @@ qt_add_executable(chaosplay WIN32
     src/platform/Platform.h src/platform/Platform.cpp
     src/platform/SingleInstance.h src/platform/SingleInstance.cpp
     src/platform/Taskbar.h src/platform/Taskbar.cpp
-    src/player/LocationResolver.h src/player/LocationResolver.cpp
     src/library/ThumbnailService.h src/library/ThumbnailService.cpp
     src/library/LibraryController.h src/library/LibraryController.cpp
 )
@@ -102,6 +128,9 @@ qt_add_qml_module(chaosplay
         qml/PageField.qml
         qml/PageSwitch.qml
         qml/Chip.qml
+        qml/ServerDialog.qml
+        qml/TvPicker.qml
+        qml/CastOverlay.qml
     RESOURCES
         assets/fonts/MaterialIcons-Regular.ttf
         assets/chaosplay-256.png
@@ -111,7 +140,7 @@ set_target_properties(chaosplay PROPERTIES QT_QML_ROOT_PATH "${CMAKE_CURRENT_SOU
 target_include_directories(chaosplay PRIVATE src src/player)
 target_compile_definitions(chaosplay PRIVATE CHAOSPLAY_VERSION="${PROJECT_VERSION}")
 target_link_libraries(chaosplay PRIVATE
-    chaosplay_core mpv
+    chaosplay_core chaosplay_net mpv
     Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::OpenGL)
 if(WIN32)
     target_link_libraries(chaosplay PRIVATE dwmapi ole32)
@@ -119,11 +148,13 @@ endif()
 
 # ---- tests -----------------------------------------------------------------
 enable_testing()
-foreach(t TimeFormatTest PlaybackRulesTest ResumeStoreTest MediaFilesTest WindowSnapTest WindowSizeRulesTest BookmarksTest SleepTimerTest PlaylistsTest AdjustmentsTest LibraryRulesTest)
+foreach(t TimeFormatTest PlaybackRulesTest ResumeStoreTest MediaFilesTest WindowSnapTest WindowSizeRulesTest BookmarksTest SleepTimerTest PlaylistsTest AdjustmentsTest LibraryRulesTest NetRulesTest CastRulesTest)
     qt_add_executable(${t} tests/core/${t}.cpp)
     target_link_libraries(${t} PRIVATE chaosplay_core Qt6::Test)
     add_test(NAME ${t} COMMAND ${t})
 endforeach()
+
+target_sources(NetRulesTest PRIVATE tests/core/NetRulesTestData.cpp)
 
 # Plays the bundled test clips through libmpv with no window (vo=null, ao=null)
 qt_add_executable(MpvPlaybackTest tests/player/MpvPlaybackTest.cpp src/player/SelfTest.cpp)
@@ -140,3 +171,17 @@ target_link_libraries(FramePreviewerTest PRIVATE chaosplay_core mpv Qt6::Test Qt
 target_compile_definitions(FramePreviewerTest PRIVATE
     TEST_MEDIA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-media")
 add_test(NAME FramePreviewerTest COMMAND FramePreviewerTest)
+
+# Network sources end to end against tools/test-servers (skipped when they are not running)
+qt_add_executable(NetworkIntegrationTest tests/network/NetworkIntegrationTest.cpp)
+target_link_libraries(NetworkIntegrationTest PRIVATE chaosplay_net Qt6::Test Qt6::Network)
+target_compile_definitions(NetworkIntegrationTest PRIVATE
+    TEST_SERVERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-servers")
+add_test(NAME NetworkIntegrationTest COMMAND NetworkIntegrationTest)
+
+# Play on TV against tools/test-servers/mocktv.py and mockcast.py (skipped when not running)
+qt_add_executable(TvIntegrationTest tests/network/TvIntegrationTest.cpp)
+target_link_libraries(TvIntegrationTest PRIVATE chaosplay_net Qt6::Test Qt6::Network)
+target_compile_definitions(TvIntegrationTest PRIVATE
+    TEST_SERVERS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-servers")
+add_test(NAME TvIntegrationTest COMMAND TvIntegrationTest)

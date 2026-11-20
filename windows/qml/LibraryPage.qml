@@ -263,6 +263,7 @@ Item {
         ChaosMenuItem { text: "Play"; onTriggered: lib.play(videoMenu.path) }
         ChaosMenuItem { text: "Play from the beginning"; onTriggered: { lib.host.startOverNext = true; lib.play(videoMenu.path) } }
         ChaosMenuItem { text: "Add to the playlist"; enabled: lib.host.active; onTriggered: lib.host.addToQueue([videoMenu.path]) }
+        ChaosMenuItem { text: "Play on TV…"; onTriggered: lib.host.castLocations([videoMenu.path]) }
         ChaosMenuItem { text: "Play everything shown here"; onTriggered: { const all = library.visiblePaths(); lib.host.playQueue(all, Math.max(0, all.indexOf(videoMenu.path))) } }
         MenuSeparator {}
         ChaosMenuItem {
