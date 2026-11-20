@@ -8,7 +8,9 @@ Rectangle {
     id: bar
     property string title: "CPlay"
     property bool fullscreen: false
+    property bool showHome: false
     signal menuRequested(Item anchor)
+    signal homeRequested()
     signal toggleOnTop()
     signal closeRequested()
 
@@ -55,10 +57,19 @@ Rectangle {
             onClicked: bar.menuRequested(logo)
         }
 
+        // Back to the library (stops the video, remembering where it was)
+        IconButton {
+            visible: bar.showHome
+            iconName: "video_library"
+            iconSize: 17
+            tip: "Back to the library"
+            onClicked: bar.homeRequested()
+        }
+
         Text {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            Layout.leftMargin: 8
+            Layout.leftMargin: bar.showHome ? 2 : 8
             text: bar.title
             color: Theme.chromeText
             elide: Text.ElideMiddle

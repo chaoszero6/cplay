@@ -30,6 +30,7 @@ public:
     explicit AppController(QStringList startupFiles, QObject *parent = nullptr);
 
     void setWindow(QWindow *window);
+    ResumeStore *resumeStore() { return &m_resume; }
 
     bool alwaysOnTop() const { return m_alwaysOnTop; }
     void setAlwaysOnTop(bool onTop);

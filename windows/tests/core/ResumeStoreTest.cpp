@@ -6,6 +6,18 @@ class ResumeStoreTest : public QObject
 {
     Q_OBJECT
 private slots:
+    void renameMovesTheHistory()
+    {
+        QTemporaryDir dir;
+        ResumeStore s(dir.filePath("h.json"));
+        s.update("C:/a.mkv", "a", 60000, 600000, false, 1000);
+        s.rename("C:/a.mkv", "C:/b.mkv");
+        QVERIFY(!s.entry("C:/a.mkv").has_value());
+        QCOMPARE(s.entry("C:/b.mkv")->positionMs, 60000);
+        QCOMPARE(s.entry("C:/b.mkv")->key, QString("C:/b.mkv"));
+        s.rename("C:/missing.mkv", "C:/x.mkv"); // nothing to move
+        QVERIFY(!s.entry("C:/x.mkv").has_value());
+    }
     void savesAndReloads()
     {
         QTemporaryDir dir;

@@ -2,6 +2,8 @@
 #include "app/WindowController.h"
 #include "app/PlayerTools.h"
 #include "player/PreviewProvider.h"
+#include "library/LibraryController.h"
+#include "library/ThumbnailService.h"
 #include "platform/SingleInstance.h"
 #include "platform/Taskbar.h"
 
@@ -100,12 +102,18 @@ int main(int argc, char *argv[])
     // Objects QML uses must outlive the engine: declared before it, destroyed after it
     PlayerTools tools(dataDir);
     Taskbar taskbar;
+    const QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    auto thumbs = std::make_shared<ThumbnailService>(cacheDir + QStringLiteral("/thumbs"), 3);
+    LibraryController library(dataDir, controller.resumeStore(), thumbs);
+    QObject::connect(&controller, &AppController::recentChanged, &library, &LibraryController::refreshProgress);
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("app"), &controller);
     engine.rootContext()->setContextProperty(QStringLiteral("windowCtl"), &windowCtl);
     engine.rootContext()->setContextProperty(QStringLiteral("tools"), &tools);
     engine.addImageProvider(QStringLiteral("preview"), new PreviewProvider); // engine takes ownership
     engine.rootContext()->setContextProperty(QStringLiteral("taskbar"), &taskbar);
+    engine.rootContext()->setContextProperty(QStringLiteral("library"), &library);
+    engine.addImageProvider(QStringLiteral("thumb"), new ThumbnailProvider(thumbs));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
                      [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     engine.loadFromModule("ChaosPlay", "Main");

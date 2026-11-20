@@ -44,6 +44,21 @@ QtObject {
     readonly property int bodySize: 14
     readonly property int captionSize: 12
 
+    // Library, network and settings pages follow the Appearance setting (dark/light);
+    // the player skin (title bar, control bar, menus, panels) always stays dark
+    property bool lightPages: false
+    readonly property color pageBg: lightPages ? "#F3F4F7" : "#101318"
+    readonly property color pageSurface: lightPages ? "#FFFFFF" : "#171B22"
+    readonly property color pageSurface2: lightPages ? "#E9ECF1" : "#1F242D"
+    readonly property color pageBorder: lightPages ? "#D6DAE1" : "#2A303B"
+    readonly property color pageHover: lightPages ? "#E2E9F4" : "#232A35"
+    readonly property color pageSelected: lightPages ? "#D3E4FA" : "#27415F"
+    readonly property color pageText: lightPages ? "#161A20" : "#EDEFF3"
+    readonly property color pageTextMuted: lightPages ? "#5D6573" : "#9AA3B2"
+    readonly property color pageAccent: lightPages ? "#1F6FD1" : "#4DA3FF"
+    readonly property color sidebarBg: lightPages ? "#E9ECF1" : "#14171C"
+    readonly property color thumbBg: lightPages ? "#D9DDE4" : "#0B0D10"
+
     readonly property int fadeMs: 200
     readonly property int autoHideMs: 3000
     readonly property int bufferingDelayMs: 400

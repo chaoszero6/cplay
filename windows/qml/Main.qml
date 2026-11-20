@@ -84,6 +84,7 @@ ApplicationWindow {
     function runDevScript(script) { eval(script) }
 
     Component.onCompleted: {
+        Theme.lightPages = app.setting("app/theme", "dark") === "light"
         // The saved size/position is restored from C++ once the window is shown
         if (app.startupFiles.length > 0) openLocations(app.startupFiles, false)
     }

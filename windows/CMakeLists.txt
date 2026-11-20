@@ -43,6 +43,7 @@ add_library(chaosplay_core STATIC
     src/core/SleepTimer.h src/core/SleepTimer.cpp
     src/core/Playlists.h src/core/Playlists.cpp
     src/core/Adjustments.h src/core/Adjustments.cpp
+    src/core/LibraryRules.h src/core/LibraryRules.cpp
 )
 target_include_directories(chaosplay_core PUBLIC src)
 target_link_libraries(chaosplay_core PUBLIC Qt6::Core)
@@ -60,6 +61,9 @@ qt_add_executable(chaosplay WIN32
     src/platform/Platform.h src/platform/Platform.cpp
     src/platform/SingleInstance.h src/platform/SingleInstance.cpp
     src/platform/Taskbar.h src/platform/Taskbar.cpp
+    src/player/LocationResolver.h src/player/LocationResolver.cpp
+    src/library/ThumbnailService.h src/library/ThumbnailService.cpp
+    src/library/LibraryController.h src/library/LibraryController.cpp
 )
 if(WIN32)
     target_sources(chaosplay PRIVATE assets/chaosplay.rc) # exe icon
@@ -73,7 +77,6 @@ qt_add_qml_module(chaosplay
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
-        qml/IdleScreen.qml
         qml/PlayerPage.qml
         qml/TitleBar.qml
         qml/ControlBar.qml
@@ -88,6 +91,17 @@ qt_add_qml_module(chaosplay
         qml/ControlBox.qml
         qml/PlaylistPanel.qml
         qml/LockOverlay.qml
+        qml/HomeScreen.qml
+        qml/LibraryPage.qml
+        qml/NetworkPage.qml
+        qml/SettingsPage.qml
+        qml/VideoCard.qml
+        qml/VideoRow.qml
+        qml/PageButton.qml
+        qml/PageIconButton.qml
+        qml/PageField.qml
+        qml/PageSwitch.qml
+        qml/Chip.qml
     RESOURCES
         assets/fonts/MaterialIcons-Regular.ttf
         assets/chaosplay-256.png
@@ -105,7 +119,7 @@ endif()
 
 # ---- tests -----------------------------------------------------------------
 enable_testing()
-foreach(t TimeFormatTest PlaybackRulesTest ResumeStoreTest MediaFilesTest WindowSnapTest WindowSizeRulesTest BookmarksTest SleepTimerTest PlaylistsTest AdjustmentsTest)
+foreach(t TimeFormatTest PlaybackRulesTest ResumeStoreTest MediaFilesTest WindowSnapTest WindowSizeRulesTest BookmarksTest SleepTimerTest PlaylistsTest AdjustmentsTest LibraryRulesTest)
     qt_add_executable(${t} tests/core/${t}.cpp)
     target_link_libraries(${t} PRIVATE chaosplay_core Qt6::Test)
     add_test(NAME ${t} COMMAND ${t})
@@ -120,9 +134,9 @@ target_compile_definitions(MpvPlaybackTest PRIVATE
 add_test(NAME MpvPlaybackTest COMMAND MpvPlaybackTest)
 
 # Seek-bar preview frames (hidden libmpv instance, software rendering)
-qt_add_executable(FramePreviewerTest tests/player/FramePreviewerTest.cpp src/player/FramePreviewer.cpp)
+qt_add_executable(FramePreviewerTest tests/player/FramePreviewerTest.cpp src/player/FramePreviewer.cpp src/player/LocationResolver.cpp)
 target_include_directories(FramePreviewerTest PRIVATE src)
-target_link_libraries(FramePreviewerTest PRIVATE mpv Qt6::Test Qt6::Core Qt6::Gui)
+target_link_libraries(FramePreviewerTest PRIVATE chaosplay_core mpv Qt6::Test Qt6::Core Qt6::Gui)
 target_compile_definitions(FramePreviewerTest PRIVATE
     TEST_MEDIA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-media")
 add_test(NAME FramePreviewerTest COMMAND FramePreviewerTest)

@@ -1,4 +1,6 @@
 #include "FramePreviewer.h"
+#include "LocationResolver.h"
+#include "core/LibraryRules.h"
 
 #include <mpv/client.h>
 #include <mpv/render.h>
@@ -53,11 +55,31 @@ bool FramePreviewer::open(const QString &source, int timeoutMs)
     if (m_loaded && source == m_source) return true;
     m_loaded = false;
     m_source = source;
-    const QByteArray path = (source.startsWith(QLatin1String("file://")) ? QUrl(source).toLocalFile() : source).toUtf8();
+    const ResolvedLocation r = LocationResolver::resolve(source);
+    if (!r.error.isEmpty() || r.url.isEmpty()) return false;
+    setHeaders(m_mpv, r.httpHeaders);
+    const QByteArray path = r.url.toUtf8();
     const char *cmd[] = {"loadfile", path.constData(), nullptr};
     if (mpv_command(m_mpv, cmd) < 0) return false;
     m_loaded = waitFor(MPV_EVENT_FILE_LOADED, timeoutMs);
     return m_loaded;
+}
+
+void FramePreviewer::setHeaders(mpv_handle *mpv, const QStringList &headers)
+{
+    // As a node list: header values may contain commas
+    QList<QByteArray> data;
+    for (const auto &h : headers) data << h.toUtf8();
+    std::vector<mpv_node> items(size_t(data.size()));
+    for (qsizetype i = 0; i < data.size(); ++i) {
+        items[size_t(i)].format = MPV_FORMAT_STRING;
+        items[size_t(i)].u.string = data[i].data();
+    }
+    mpv_node_list list{int(items.size()), items.data(), nullptr};
+    mpv_node node;
+    node.format = MPV_FORMAT_NODE_ARRAY;
+    node.u.list = &list;
+    mpv_set_property(mpv, "http-header-fields", MPV_FORMAT_NODE, &node);
 }
 
 QImage FramePreviewer::frameAt(const QString &source, qint64 positionMs, QSize maxSize, int timeoutMs)
@@ -67,7 +89,33 @@ QImage FramePreviewer::frameAt(const QString &source, qint64 positionMs, QSize m
     QElapsedTimer t;
     t.start();
     if (!open(source, timeoutMs)) return {};
+    return grab(positionMs, maxSize, timeoutMs, t);
+}
 
+QImage FramePreviewer::thumbnail(const QString &source, QSize maxSize, qint64 *durationMs, int timeoutMs)
+{
+    QMutexLocker guard(&m_lock);
+    if (durationMs) *durationMs = 0;
+    if (!m_mpv || !m_render || source.isEmpty() || maxSize.isEmpty()) return {};
+    QElapsedTimer t;
+    t.start();
+    m_loaded = false; // always reload: the library asks for each file once
+    if (!open(source, timeoutMs)) return {};
+    double seconds = 0;
+    mpv_get_property(m_mpv, "duration", MPV_FORMAT_DOUBLE, &seconds);
+    const qint64 duration = qint64(seconds * 1000);
+    if (durationMs) *durationMs = duration;
+    QImage image = grab(LibraryRules::thumbnailPositionMs(duration), maxSize, timeoutMs, t);
+    // Leave the file so it is not kept open (it may be renamed or deleted next)
+    const char *stop[] = {"stop", nullptr};
+    mpv_command(m_mpv, stop);
+    m_loaded = false;
+    m_source.clear();
+    return image;
+}
+
+QImage FramePreviewer::grab(qint64 positionMs, QSize maxSize, int timeoutMs, const QElapsedTimer &t)
+{
     const QByteArray target = QByteArray::number(std::max<qint64>(0, positionMs) / 1000.0, 'f', 3);
     const char *seek[] = {"seek", target.constData(), "absolute+keyframes", nullptr};
     if (mpv_command(m_mpv, seek) < 0) return {};

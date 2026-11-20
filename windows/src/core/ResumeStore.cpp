@@ -96,4 +96,14 @@ QList<ResumeStore::Entry> ResumeStore::recent(int limit) const
 }
 
 void ResumeStore::remove(const QString &key) { m_entries.remove(key); }
+
+void ResumeStore::rename(const QString &oldKey, const QString &newKey)
+{
+    auto it = m_entries.find(oldKey);
+    if (it == m_entries.end() || oldKey == newKey) return;
+    Entry e = it.value();
+    m_entries.erase(it);
+    e.key = newKey;
+    m_entries.insert(newKey, e);
+}
 void ResumeStore::clear() { m_entries.clear(); }

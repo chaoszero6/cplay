@@ -153,4 +153,5 @@ private:
     bool m_firstFrame = false;
     bool m_rendererReady = false;
     QStringList m_pendingLoad;
+    QStringList m_pendingSubtitles;
 };

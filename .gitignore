@@ -21,3 +21,9 @@ docs/
 # Local tool output
 *.log
 windows/test/
+# Built by windows/scripts/build-net-libs.sh (sources downloaded, pinned by SHA-256)
+windows/third_party/src/
+windows/third_party/net-linux/
+windows/third_party/net-windows/
+windows/third_party/build-net-linux/
+windows/third_party/build-net-windows/

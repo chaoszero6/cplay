@@ -1,4 +1,6 @@
 #include "MpvPlayer.h"
+#include "FramePreviewer.h"
+#include "LocationResolver.h"
 
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
@@ -287,6 +289,10 @@ void MpvPlayer::handleEvent(const mpv_event *event)
     }
     case MPV_EVENT_FILE_LOADED:
         if (!m_error.isEmpty()) { m_error.clear(); emit errorStringChanged(); }
+        // Server-side subtitles (Jellyfin, DLNA): offered, not selected
+        for (const QString &sub : std::as_const(m_pendingSubtitles))
+            command({QStringLiteral("sub-add"), sub, QStringLiteral("auto")});
+        m_pendingSubtitles.clear();
         emit fileLoaded();
         break;
     case MPV_EVENT_END_FILE: {
@@ -382,8 +388,9 @@ void MpvPlayer::onRendererFailed()
 
 void MpvPlayer::open(const QString &location, qint64 startMs)
 {
-    QString target = location;
-    if (location.startsWith(QLatin1String("file://"))) target = QUrl(location).toLocalFile();
+    const ResolvedLocation resolved = LocationResolver::resolve(location);
+    const QString target = resolved.url;
+    m_pendingSubtitles = resolved.subtitles;
     m_source = location;
     m_pendingStartMs = startMs;
     m_firstFrame = false;
@@ -392,6 +399,12 @@ void MpvPlayer::open(const QString &location, qint64 startMs)
     if (!m_error.isEmpty()) { m_error.clear(); emit errorStringChanged(); }
     emit sourceChanged();
     emit firstFrameShownChanged();
+    if (!resolved.error.isEmpty() || target.isEmpty()) {
+        m_error = resolved.error.isEmpty() ? QStringLiteral("Could not open this video.") : resolved.error;
+        emit errorStringChanged();
+        return;
+    }
+    if (m_mpv) FramePreviewer::setHeaders(m_mpv.get(), resolved.httpHeaders);
     emit endedChanged();
     emit positionChanged();
     QStringList args{QStringLiteral("loadfile"), target, QStringLiteral("replace")};

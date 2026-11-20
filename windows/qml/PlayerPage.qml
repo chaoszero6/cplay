@@ -12,6 +12,8 @@ Item {
     property int queueIndex: -1
     property string currentLocation: ""
     property bool sizeAppliedForFile: false
+    property bool startOverNext: false       // "Play from the beginning" (library menu)
+    property alias home: home
     readonly property bool active: currentLocation.length > 0
     readonly property bool hasNext: queueIndex >= 0 && queueIndex < queue.length - 1
     readonly property bool hasPrevious: queueIndex > 0
@@ -80,7 +82,8 @@ Item {
         queueIndex = index
         currentLocation = queue[index]
         sizeAppliedForFile = false
-        const start = app.startPositionFor(currentLocation)
+        const start = startOverNext ? 0 : app.startPositionFor(currentLocation)
+        startOverNext = false
         mpv.open(currentLocation, start)
         mpv.setVolume(app.volume)
         osd.show(start > 0 ? "Resume at " + app.formatClock(start) + "   (Home: start over)" : app.displayName(currentLocation))
@@ -391,6 +394,8 @@ Item {
         fullscreen: page.fullscreen
         onMenuRequested: (anchor) => page.openMainMenu(anchor, true)
         onToggleOnTop: page.toggleOnTop()
+        showHome: page.active
+        onHomeRequested: page.close()
         onCloseRequested: page.quitRequested()
     }
 
@@ -400,7 +405,7 @@ Item {
         anchors {
             left: parent.left; right: parent.right
             top: page.overlayChrome ? parent.top : titleBar.bottom
-            bottom: page.overlayChrome ? parent.bottom : controlBar.top
+            bottom: page.overlayChrome || !page.active ? parent.bottom : controlBar.top
         }
         // No clip here: clipping the mpv framebuffer item leaves the picture black
 
@@ -455,12 +460,15 @@ Item {
             onWheel: (w) => { if (page.active) page.changeVolume(w.angleDelta.y > 0 ? 5 : -5); page.poke() }
         }
 
-        IdleScreen {
+        // Nothing playing: the library, network sources and settings
+        HomeScreen {
+            id: home
             anchors.fill: parent
+            host: page
             visible: !page.active
             onOpenFiles: page.openFileRequested()
             onOpenLink: page.openLinkRequested()
-            onPlayLocation: (location) => page.playQueue([location], 0)
+            onCustomSizeRequested: page.customSizeRequested()
         }
 
         // Paused: small play badge; loading/buffering: spinner after a short delay
@@ -563,6 +571,7 @@ Item {
         id: controlBar
         z: 5
         host: page
+        visible: page.active
         anchors { left: parent.left; right: parent.right }
         y: page.chromeShown ? page.height - height : page.height
         Behavior on y { NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.OutCubic } }
@@ -829,26 +838,26 @@ Item {
     Shortcut { sequence: "Left"; enabled: !page.locked && (page.active); onActivated: { mpv.seekBy(-10000); page.poke() } }
     Shortcut { sequence: "Shift+Right"; enabled: !page.locked && (page.active); onActivated: mpv.seekBy(60000) }
     Shortcut { sequence: "Shift+Left"; enabled: !page.locked && (page.active); onActivated: mpv.seekBy(-60000) }
-    Shortcut { enabled: !page.locked; sequence: "Up"; onActivated: page.changeVolume(5) }
-    Shortcut { enabled: !page.locked; sequence: "Down"; onActivated: page.changeVolume(-5) }
-    Shortcut { enabled: !page.locked; sequence: "M"; onActivated: { mpv.setMuted(!mpv.muted); osd.show(mpv.muted ? "Sound on" : "Muted") } }
-    Shortcut { enabled: !page.locked; sequences: ["Return", "Enter", "F"]; onActivated: page.toggleFullscreen() }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Up"; onActivated: page.changeVolume(5) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Down"; onActivated: page.changeVolume(-5) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "M"; onActivated: { mpv.setMuted(!mpv.muted); osd.show(mpv.muted ? "Sound on" : "Muted") } }
+    Shortcut { enabled: !page.locked && page.active; sequences: ["Return", "Enter", "F"]; onActivated: page.toggleFullscreen() }
     Shortcut { sequence: "Esc"; enabled: !page.locked && (page.fullscreen); onActivated: page.toggleFullscreen() }
     Shortcut { enabled: !page.locked; sequence: "Ctrl+T"; onActivated: page.toggleOnTop() }
     Shortcut { enabled: !page.locked; sequence: "Menu"; onActivated: page.openMainMenuAt(page.width / 3, page.height / 5) }
-    Shortcut { enabled: !page.locked; sequence: "Alt+1"; onActivated: page.setWindowScale(0.5) }
-    Shortcut { enabled: !page.locked; sequence: "Alt+2"; onActivated: page.setWindowScale(1.0) }
-    Shortcut { enabled: !page.locked; sequence: "Alt+3"; onActivated: page.setWindowScale(1.5) }
-    Shortcut { enabled: !page.locked; sequence: "Alt+4"; onActivated: page.setWindowScale(2.0) }
-    Shortcut { enabled: !page.locked; sequence: "]"; onActivated: page.setSpeed(app.stepSpeed(mpv.speed, true)) }
-    Shortcut { enabled: !page.locked; sequence: "["; onActivated: page.setSpeed(app.stepSpeed(mpv.speed, false)) }
-    Shortcut { enabled: !page.locked; sequence: "Backspace"; onActivated: page.setSpeed(1.0) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Alt+1"; onActivated: page.setWindowScale(0.5) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Alt+2"; onActivated: page.setWindowScale(1.0) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Alt+3"; onActivated: page.setWindowScale(1.5) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Alt+4"; onActivated: page.setWindowScale(2.0) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "]"; onActivated: page.setSpeed(app.stepSpeed(mpv.speed, true)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "["; onActivated: page.setSpeed(app.stepSpeed(mpv.speed, false)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Backspace"; onActivated: page.setSpeed(1.0) }
     Shortcut { sequence: "."; enabled: !page.locked && (page.active); onActivated: mpv.frameStep(true) }
     Shortcut { sequence: ","; enabled: !page.locked && (page.active); onActivated: mpv.frameStep(false) }
     Shortcut { sequence: "S"; enabled: !page.locked && (page.active); onActivated: mpv.screenshot() }
     Shortcut { sequence: "V"; enabled: !page.locked && (page.active); onActivated: page.cycleSubtitles() }
     Shortcut { sequence: "Home"; enabled: !page.locked && (page.active); onActivated: mpv.seekTo(0) }
-    Shortcut { enabled: !page.locked; sequences: ["PgDown", "N"]; onActivated: page.next() }
+    Shortcut { enabled: !page.locked && page.active; sequences: ["PgDown", "N"]; onActivated: page.next() }
     Shortcut { sequences: ["PgUp", "P"]; enabled: !page.locked && (page.active); onActivated: page.previous() }
 
     // Phase 2 keys
@@ -856,19 +865,19 @@ Item {
     Shortcut { enabled: !page.locked && page.active; sequence: "B"; onActivated: page.addBookmark() }
     Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+Right"; onActivated: page.jumpBookmark(true) }
     Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+Left"; onActivated: page.jumpBookmark(false) }
-    Shortcut { enabled: !page.locked; sequences: ["Ctrl+=", "Ctrl++"]; onActivated: page.setAudioDelay(tools.stepDelay(page.audioDelayMs, true)) }
-    Shortcut { enabled: !page.locked; sequence: "Ctrl+-"; onActivated: page.setAudioDelay(tools.stepDelay(page.audioDelayMs, false)) }
-    Shortcut { enabled: !page.locked; sequences: ["Alt+=", "Alt++"]; onActivated: page.setSubDelay(tools.stepDelay(page.subDelayMs, true)) }
-    Shortcut { enabled: !page.locked; sequence: "Alt+-"; onActivated: page.setSubDelay(tools.stepDelay(page.subDelayMs, false)) }
-    Shortcut { enabled: !page.locked; sequence: "Alt+Up"; onActivated: page.setSubScale(tools.stepSubScale(page.subScale, true)) }
-    Shortcut { enabled: !page.locked; sequence: "Alt+Down"; onActivated: page.setSubScale(tools.stepSubScale(page.subScale, false)) }
-    Shortcut { enabled: !page.locked; sequence: "Ctrl+Up"; onActivated: page.setZoom(tools.stepZoom(page.zoom, true)) }
-    Shortcut { enabled: !page.locked; sequence: "Ctrl+Down"; onActivated: page.setZoom(tools.stepZoom(page.zoom, false)) }
-    Shortcut { enabled: !page.locked; sequence: "Ctrl+R"; onActivated: page.rotate() }
-    Shortcut { enabled: !page.locked; sequence: "D"; onActivated: page.setDeinterlace(!page.deinterlace) }
-    Shortcut { enabled: !page.locked; sequence: "Ctrl+G"; onActivated: page.showControlBox = !page.showControlBox }
-    Shortcut { enabled: !page.locked; sequence: "Ctrl+P"; onActivated: page.showPlaylist = !page.showPlaylist }
-    Shortcut { enabled: !page.locked; sequence: "Ctrl+M"; onActivated: page.setMini(!page.mini) }
+    Shortcut { enabled: !page.locked && page.active; sequences: ["Ctrl+=", "Ctrl++"]; onActivated: page.setAudioDelay(tools.stepDelay(page.audioDelayMs, true)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+-"; onActivated: page.setAudioDelay(tools.stepDelay(page.audioDelayMs, false)) }
+    Shortcut { enabled: !page.locked && page.active; sequences: ["Alt+=", "Alt++"]; onActivated: page.setSubDelay(tools.stepDelay(page.subDelayMs, true)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Alt+-"; onActivated: page.setSubDelay(tools.stepDelay(page.subDelayMs, false)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Alt+Up"; onActivated: page.setSubScale(tools.stepSubScale(page.subScale, true)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Alt+Down"; onActivated: page.setSubScale(tools.stepSubScale(page.subScale, false)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+Up"; onActivated: page.setZoom(tools.stepZoom(page.zoom, true)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+Down"; onActivated: page.setZoom(tools.stepZoom(page.zoom, false)) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+R"; onActivated: page.rotate() }
+    Shortcut { enabled: !page.locked && page.active; sequence: "D"; onActivated: page.setDeinterlace(!page.deinterlace) }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+G"; onActivated: page.showControlBox = !page.showControlBox }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+P"; onActivated: page.showPlaylist = !page.showPlaylist }
+    Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+M"; onActivated: page.setMini(!page.mini) }
     Shortcut { enabled: !page.locked && page.active; sequence: "Ctrl+L"; onActivated: page.setLocked(true) }
     Shortcut { enabled: !page.locked; sequence: "Ctrl+Shift+O"; onActivated: page.openFolderRequested() }
 }

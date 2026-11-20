@@ -1,4 +1,5 @@
 #include "AppController.h"
+#include "player/LocationResolver.h"
 
 #include "core/MediaFiles.h"
 #include "core/PlaybackRules.h"
@@ -78,7 +79,7 @@ QVariantList AppController::recent() const
         if (local && !QFileInfo::exists(e.key)) continue; // moved or deleted since
         out << QVariantMap{
             {"location", e.key},
-            {"title", e.title.isEmpty() ? MediaFiles::displayName(e.key) : e.title},
+            {"title", e.title.isEmpty() ? displayName(e.key) : e.title},
             {"positionMs", e.positionMs},
             {"durationMs", e.durationMs},
             {"progress", TimeFormat::progressFraction(e.positionMs, e.durationMs)},
@@ -96,6 +97,7 @@ QStringList AppController::fileFilters() const { return MediaFiles::openDialogFi
 
 qint64 AppController::startPositionFor(const QString &location) const
 {
+    if (!m_settings.value(QStringLiteral("player/resume"), true).toBool()) return 0;
     return m_resume.startPositionFor(location);
 }
 
@@ -116,7 +118,11 @@ void AppController::forget(const QString &location)
 }
 
 void AppController::keepAwake(bool awake) { Platform::keepAwake(awake); }
-QString AppController::displayName(const QString &location) const { return MediaFiles::displayName(location); }
+QString AppController::displayName(const QString &location) const
+{
+    const QString key = LocationResolver::displayName(location); // network keys know their title
+    return key.isEmpty() ? MediaFiles::displayName(location) : key;
+}
 bool AppController::isMedia(const QString &location) const { return MediaFiles::isMedia(location) || MediaFiles::isUrl(location); }
 bool AppController::isSubtitle(const QString &location) const { return MediaFiles::isSubtitle(location); }
 

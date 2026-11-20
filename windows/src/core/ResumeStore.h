@@ -34,6 +34,8 @@ public:
     /** Most recently played first. */
     QList<Entry> recent(int limit) const;
     void remove(const QString &key);
+    /** A file was renamed or moved: its history follows it. */
+    void rename(const QString &oldKey, const QString &newKey);
     void clear();
 
     static constexpr int MaxEntries = 500;
