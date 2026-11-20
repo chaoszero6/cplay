@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 # CPlay for Windows (also builds on Linux for testing). Internal project/module name: ChaosPlay.
 # C++ / Qt 6 Quick / libmpv, per docs/spec/01-feature-and-build-guide.md section 8.
-project(ChaosPlay VERSION 0.3.0 LANGUAGES CXX)
+project(ChaosPlay VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

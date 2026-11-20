@@ -23,7 +23,7 @@ struct RemoteEntry {
 };
 
 /**
- * Network rules ported from the Android app (network/*Rules.kt): addresses,
+ * Network rules ported from the Android app (network/...Rules.kt): addresses,
  * Jellyfin JSON, WebDAV PROPFIND, DLNA/UPnP (SSDP, DIDL-Lite, SOAP), the
  * local media server's Range header and FTP replies. Pure functions, unit
  * tested in tests/core/NetRulesTest.cpp.

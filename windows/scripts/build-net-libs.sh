@@ -29,6 +29,14 @@ if [[ $TARGET == windows ]]; then
     # libsmb2's Windows code expects MSVC's _WINDOWS; MinGW already declares gethostname()
     TC=(-DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/llvm-mingw-toolchain.cmake "-DCMAKE_C_FLAGS=-D_WINDOWS -Wno-int-conversion")
     sed -i 's/^#if defined(_XBOX) || defined(__MINGW32__)$/#if defined(_XBOX)/' "$SRC/libsmb2-6.0.0/lib/compat.h"
+    # Non-blocking connect on Winsock reports WSAEWOULDBLOCK, also with MinGW (not only MSVC)
+    python3 -I - "$SRC/libsmb2-6.0.0/lib/socket.c" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+s = s.replace("#ifndef _MSC_VER\n                  && errno != EINPROGRESS", "#if !defined(_MSC_VER) && !defined(_WIN32)\n                  && errno != EINPROGRESS")
+open(p, "w").write(s)
+PY
     # MinGW has its own asprintf/vasprintf
     grep -q CPLAY_MINGW "$SRC/libsmb2-6.0.0/include/asprintf.h" ||
         sed -i 's/^#define _ASPRINTF_H_$/#define _ASPRINTF_H_\n#ifdef __MINGW32__ \/\/ CPLAY_MINGW\n#include <stdio.h>\n#else/; $ a #endif' "$SRC/libsmb2-6.0.0/include/asprintf.h"

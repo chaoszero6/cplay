@@ -5,6 +5,10 @@ CPlay for Windows bundles these components:
   - https://mpv.io/ , https://ffmpeg.org/ , https://github.com/shinchiro/mpv-winbuild-cmake
   Because this build of libmpv is GPL, CPlay for Windows is distributed under
   GPL-3.0-compatible terms; its source code is available on request.
+- libsmb2 6.0.0 (LGPL-2.1) - https://github.com/sahlberg/libsmb2 - SMB2/3 client, linked statically
+- libnfs 6.0.2 (LGPL-2.1) - https://github.com/sahlberg/libnfs - NFS client, linked statically
+  Both are built unmodified except for two MinGW header fixes (scripts/build-net-libs.sh);
+  CPlay's complete source code is public, so they can be rebuilt and relinked.
 - Vulkan loader (Apache-2.0) - https://github.com/KhronosGroup/Vulkan-Loader
 - Material Icons font (Apache-2.0) - https://github.com/google/material-design-icons
 - llvm-mingw C++ runtime: libc++ / libunwind (Apache-2.0 WITH LLVM-exception)

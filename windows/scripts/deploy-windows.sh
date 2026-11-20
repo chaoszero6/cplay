@@ -75,6 +75,9 @@ mkdir -p "$OUT/licenses"
 cp assets/fonts/MaterialIcons-LICENSE.txt "$OUT/licenses/MaterialIcons-Apache-2.0.txt"
 cp third_party/vulkan-loader/LICENSE-vulkan-loader.txt "$OUT/licenses/vulkan-loader.txt"
 cp third_party/THIRD-PARTY.txt "$OUT/licenses/THIRD-PARTY.txt"
+cp third_party/src/libsmb2-6.0.0/LICENCE-LGPL-2.1.txt "$OUT/licenses/libsmb2-LGPL-2.1.txt"
+cp third_party/src/libnfs-libnfs-6.0.2/LICENCE-LGPL-2.1.txt "$OUT/licenses/libnfs-LGPL-2.1.txt"
+cp ../LICENSE "$OUT/licenses/CPlay-GPL-3.0.txt"
 
 # Everything not found must be a Windows system DLL
 echo "System DLLs expected from Windows: $(printf '%s\n' "${missing[@]}" | sort -u | tr '\n' ' ')"

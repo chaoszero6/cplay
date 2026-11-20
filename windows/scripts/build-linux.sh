@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 QT=${QT:-/opt/qt/6.8.2/gcc_64}
+[[ -f third_party/net-linux/lib/libsmb2.a && -f third_party/net-linux/lib/libnfs.a ]] || scripts/build-net-libs.sh linux
 cmake -S . -B build-linux -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCMAKE_PREFIX_PATH="$QT" \
